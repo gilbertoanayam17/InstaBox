@@ -69,16 +69,25 @@ aws rds delete-db-subnet-group --db-subnet-group-name "$SUBNET_GROUP" --region "
 
 # ---------------------------------------------------------------- Security Groups
 # Van hasta aquí porque no se pueden borrar mientras la EC2 o la RDS los usen.
+# Y el de la base va PRIMERO: su regla del puerto 5432 apunta al de la app, y AWS
+# no deja borrar un security group mientras otro lo esté referenciando.
 echo ""
 echo "--> Security Groups"
-for SG in "$SG_APP_NAME" "$SG_DB_NAME"; do
+for SG in "$SG_DB_NAME" "$SG_APP_NAME"; do
     SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=$SG" \
         --query "SecurityGroups[0].GroupId" --output text --region "$REGION" 2>/dev/null)
 
     if [ -n "$SG_ID" ] && [ "$SG_ID" != "None" ]; then
-        aws ec2 delete-security-group --group-id "$SG_ID" --region "$REGION" \
-            && echo "    eliminado: $SG ($SG_ID)" \
-            || echo "    no se pudo eliminar $SG, revisa que nada lo esté usando"
+        if aws ec2 delete-security-group --group-id "$SG_ID" --region "$REGION" > /dev/null 2>&1; then
+            echo "    eliminado: $SG ($SG_ID)"
+        else
+            # La interfaz de red de la instancia tarda unos segundos en liberarse.
+            echo "    $SG sigue ocupado, reintentando en 20 s..."
+            sleep 20
+            aws ec2 delete-security-group --group-id "$SG_ID" --region "$REGION" > /dev/null 2>&1 \
+                && echo "    eliminado: $SG ($SG_ID)" \
+                || echo "    NO se pudo eliminar $SG ($SG_ID), revisa qué lo está usando"
+        fi
     else
         echo "    no existe $SG"
     fi
@@ -87,7 +96,7 @@ done
 # ---------------------------------------------------------------- Key Pair
 echo ""
 echo "--> Key Pair"
-aws ec2 delete-key-pair --key-name "$KEY_NAME" --region "$REGION" 2>/dev/null \
+aws ec2 delete-key-pair --key-name "$KEY_NAME" --region "$REGION" > /dev/null 2>&1 \
     && echo "    eliminado: $KEY_NAME" \
     || echo "    no existe $KEY_NAME"
 
@@ -138,6 +147,11 @@ aws rds describe-db-instances \
     --query "DBInstances[].{ID:DBInstanceIdentifier,Estado:DBInstanceStatus}" \
     --output table --region "$REGION"
 
+echo "Security Groups de InstaBox:"
+aws ec2 describe-security-groups \
+    --query "SecurityGroups[?starts_with(GroupName, '$PREFIX')].{ID:GroupId,Nombre:GroupName}" \
+    --output table --region "$REGION"
+
 echo "Buckets de S3:"
 aws s3 ls | grep "$PREFIX" || echo "    ninguno"
 
@@ -145,6 +159,9 @@ echo "Secrets:"
 aws secretsmanager list-secrets \
     --query "SecretList[?starts_with(Name, '$PREFIX')].Name" \
     --output table --region "$REGION"
+
+# El archivo de estado ya no sirve: apunta a recursos que dejaron de existir.
+rm -f "$(dirname "$0")/instabox.env"
 
 echo ""
 echo "Listo. Si alguna tabla salió vacía, ese recurso ya no existe."
