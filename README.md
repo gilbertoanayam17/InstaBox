@@ -228,6 +228,7 @@ DB_HOST=$(echo $SECRET | python3 -c "import sys,json;print(json.load(sys.stdin)[
 
 psql -h $DB_HOST -U postgres -d instabox -c "\dt"
 psql -h $DB_HOST -U postgres -d instabox -c "SELECT * FROM events;"
+psql -h $DB_HOST -U postgres -d instabox -c "SELECT photo_id, event_id, message FROM photos;"
 ```
 
 La base **solo es alcanzable desde la instancia**: no tiene acceso público y su security group
