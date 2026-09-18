@@ -1,0 +1,8 @@
+# Los scripts deben conservar finales de linea LF en cualquier sistema.
+# Con finales CRLF, bash falla al ejecutarlos (command not found).
+*.sh text eol=lf
+
+# Normalizacion del resto de archivos de texto
+*.ts   text
+*.json text
+*.md   text

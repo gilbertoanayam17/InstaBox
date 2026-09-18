@@ -119,6 +119,11 @@ bash teardown.sh     # borra todo al terminar
 
 Se ejecutan en ese orden, desde la carpeta del proyecto.
 
+> **Finales de línea:** los scripts solo funcionan con finales de línea LF. El archivo
+> `.gitattributes` del repositorio lo garantiza al clonar, pero si alguno se edita con un editor
+> de Windows y queda en CRLF, bash falla con `$'\r': command not found`. Se corrige con
+> `sed -i 's/\r$//' *.sh`.
+
 ### `preflight.sh`
 
 No crea nada. Revisa que estén las herramientas, que las credenciales sirvan, que exista una VPC
@@ -284,17 +289,17 @@ teardown.sh                    borra todos los recursos
 
 ## Problemas comunes
 
-| Síntoma                                 | Qué pasa                                            | Solución                                                        |
-| --------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------- |
-| `ExpiredToken` o `InvalidClientTokenId` | Caducaron las credenciales del lab                  | Volver a pegarlas en `~/.aws/credentials`                       |
-| `Connection closed by ... port 22`      | La instancia sigue arrancando                       | Esperar un minuto; `deploy.sh` reintenta solo                   |
-| `UNPROTECTED PRIVATE KEY FILE`          | La `.pem` está en `/mnt/c`, donde `chmod` no aplica | Moverla al home de Linux y `chmod 400`                          |
-| Postman: _no response_                  | La instancia se reinició y cambió de IP             | Ejecutar `setup.sh` de nuevo y actualizar `base_url`            |
-| Polaroid sin texto                      | Faltan las fuentes en la instancia                  | `sudo apt install -y fonts-dejavu-core`                         |
-| `DependencyViolation` al borrar un SG   | Otro grupo lo referencia                            | Borrar primero el de la base; el script ya lo hace en ese orden |
-| La aplicación muere al cerrar el SSH    | Se arrancó con `npm start` en vez de pm2            | `pm2 start dist/index.js --name instabox`                       |
-| `psql` se queda colgado desde el equipo | La base no es pública, a propósito                  | Conectarse desde la instancia                                   |
+| Síntoma                                        | Qué pasa                                            | Solución                                                        |
+| ---------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------- |
+| `ExpiredToken` o `InvalidClientTokenId`        | Caducaron las credenciales del lab                  | Volver a pegarlas en `~/.aws/credentials`                       |
+| `Connection closed by ... port 22`             | La instancia sigue arrancando                       | Esperar un minuto; `deploy.sh` reintenta solo                   |
+| `UNPROTECTED PRIVATE KEY FILE`                 | La `.pem` está en `/mnt/c`, donde `chmod` no aplica | Moverla al home de Linux y `chmod 400`                          |
+| Postman: _no response_                         | La instancia se reinició y cambió de IP             | Ejecutar `setup.sh` de nuevo y actualizar `base_url`            |
+| Polaroid sin texto                             | Faltan las fuentes en la instancia                  | `sudo apt install -y fonts-dejavu-core`                         |
+| `DependencyViolation` al borrar un SG          | Otro grupo lo referencia                            | Borrar primero el de la base; el script ya lo hace en ese orden |
+| La aplicación muere al cerrar el SSH           | Se arrancó con `npm start` en vez de pm2            | `pm2 start dist/index.js --name instabox`                       |
+| `psql` se queda colgado desde el equipo        | La base no es pública, a propósito                  | Conectarse desde la instancia                                   |
+| `$'\r': command not found` al correr un script | El archivo quedó con finales de línea CRLF          | `sed -i 's/\r$//' *.sh`                                         |
 
 Una advertencia del Learner Lab: cuando la sesión termina, **la instancia EC2 se detiene y al
-reiniciarla cambia su IP pública**. Para grabar una demostración conviene hacerlo dentro de una
-sola sesión del lab.
+reiniciarla cambia su IP pública**.
